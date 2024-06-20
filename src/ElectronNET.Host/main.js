@@ -83,8 +83,8 @@ app.on('ready', () => {
     callback(pathname);
   });
 
-  if (isSplashScreenEnabled()) {
-    startSplashScreen();
+    if (isSplashScreenEnabled()) {
+        startSplashScreen();
   }
   // Added default port as configurable for port restricted environments.
   let defaultElectronPort = 8000;
@@ -105,8 +105,9 @@ app.on('quit', async (event, exitCode) => {
 
 function isSplashScreenEnabled() {
   if (manifestJsonFile.hasOwnProperty('splashscreen')) {
-    if (manifestJsonFile.splashscreen.hasOwnProperty('imageFile')) {
-      return Boolean(manifestJsonFile.splashscreen.imageFile);
+    if (manifestJsonFile.splashscreen.hasOwnProperty('imageFile')
+    || manifestJsonFile.splashscreen.hasOwnProperty('htmlFile')) {
+      return Boolean(manifestJsonFile.splashscreen.imageFile || manifestJsonFile.splashscreen.htmlFile);
     }
   }
 
@@ -114,8 +115,8 @@ function isSplashScreenEnabled() {
 }
 
 function startSplashScreen() {
-  let imageFile = path.join(currentBinPath, manifestJsonFile.splashscreen.imageFile);
-  const startWindow = (width, height) => {
+  let imageFile = manifestJsonFile.splashscreen.hasOwnProperty('imageFile') ? path.join(currentBinPath, manifestJsonFile.splashscreen.imageFile) : "";
+  const startWindow = async (width, height) => {
     splashScreen = new BrowserWindow({
       width: width,
       height: height,
@@ -134,7 +135,14 @@ function startSplashScreen() {
       splashScreen.destroy();
     });
 
-    const loadSplashscreenUrl = path.join(__dirname, 'splashscreen', 'index.html') + '?imgPath=' + imageFile;
+    let loadSplashscreenUrl = path.join(__dirname, 'splashscreen', 'index.html') + '?imgPath=' + imageFile;
+
+    if (manifestJsonFile.splashscreen.hasOwnProperty('htmlFile')) {
+        const fs = require('fs');
+        const htmlFile = path.join(currentBinPath, manifestJsonFile.splashscreen.htmlFile);
+        fs.copyFile(htmlFile, path.join(__dirname, 'splashscreen', 'index.html'));
+    }
+
     splashScreen.loadURL('file://' + loadSplashscreenUrl);
     splashScreen.once('closed', () => {
       splashScreen = null;
@@ -146,16 +154,18 @@ function startSplashScreen() {
     return;
   }
 
-  imageSize(imageFile, (error, dimensions) => {
-    if (error) {
-      console.log(`load splashscreen error:`);
-      console.error(error);
+  if(imageFile && imageFile.length > 0) {
+    imageSize(imageFile, (error, dimensions) => {
+      if (error) {
+        console.log(`load splashscreen error:`);
+        console.error(error);
 
-      throw new Error(error.message);
-    }
+        throw new Error(error.message);
+      }
 
-    startWindow(dimensions.width, dimensions.height)
-  });
+      startWindow(dimensions.width, dimensions.height)
+    });
+  }
 }
 
 function startSocketApiBridge(port) {
@@ -344,7 +354,7 @@ function startAspCoreBackendWithWatch(electronPort) {
 
     apiProcess.stdout.on('data', (data) => {
       console.log(`stdout: ${data.toString()}`);
-    });
+    }); 
   }
 }
 
